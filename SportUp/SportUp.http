@@ -1,0 +1,6 @@
+@SportUp_HostAddress = https://localhost:44305/api
+
+GET {{SportUp_HostAddress}}/weatherforecast/GetWeatherForecast
+Accept: application/json
+
+###
