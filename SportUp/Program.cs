@@ -1,5 +1,6 @@
 using SportUp.Data;
 using Microsoft.EntityFrameworkCore;
+using Npgsql.EntityFrameworkCore.PostgreSQL;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -10,12 +11,12 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// Configure EF Core DbContext (LocalDB for development)
+// Configure EF Core DbContext (PostgreSQL for development)
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
-    ?? "Server=(localdb)\\mssqllocaldb;Database=SportUpDb;Trusted_Connection=True;MultipleActiveResultSets=true";
+    ?? "Host=localhost;Port=5432;Database=SportUpDb;Username=postgres;Password=YourStrong!Password";
 
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlServer(connectionString));
+    options.UseNpgsql(connectionString));
 
 var app = builder.Build();
 
