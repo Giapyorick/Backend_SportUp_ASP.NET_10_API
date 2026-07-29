@@ -15,6 +15,9 @@ namespace SportUp.Entities
         [MaxLength(500)]
         public string Description { get; set; } = string.Empty;
 
+        [MaxLength(200)]
+        public string Status { get; set; } = string.Empty;
+
         // Navigation property for EF Core
         public ICollection<Match> Matches { get; set; } = new List<Match>();
     }

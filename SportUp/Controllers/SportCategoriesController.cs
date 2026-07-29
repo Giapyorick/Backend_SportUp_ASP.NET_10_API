@@ -1,9 +1,10 @@
-﻿using System.Collections.Generic;
-using System.Threading.Tasks;
+﻿using ExcelDataReader;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SportUp.Data;
 using SportUp.Entities;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace SportUp.Controllers
 {
@@ -61,6 +62,7 @@ namespace SportUp.Controllers
 
             existing.Name = sportCategory.Name;
             existing.Description = sportCategory.Description;
+            existing.Status = sportCategory.Status;
 
             await _dbContext.SaveChangesAsync();
             return NoContent();
@@ -77,6 +79,99 @@ namespace SportUp.Controllers
             _dbContext.SportCategories.Remove(existing);
             await _dbContext.SaveChangesAsync();
             return NoContent();
+        }
+        /// <summary>
+        /// Delete multiple sport categories by a list of IDs.
+        /// </summary>
+        [HttpPost("multi-delete")] 
+        public async Task<IActionResult> MultiDelete([FromBody] List<int> ids)
+        {
+            if (ids == null || !ids.Any())
+            {
+                return BadRequest("The ID list cannot be empty.");
+            }
+
+            var itemsToDelete = await _dbContext.SportCategories
+                .Where(x => ids.Contains(x.Id))
+                .ToListAsync();
+
+            if (!itemsToDelete.Any())
+            {
+                return NotFound("No matching data found to delete.");
+            }
+
+            _dbContext.SportCategories.RemoveRange(itemsToDelete);
+            await _dbContext.SaveChangesAsync();
+
+            return Ok(new
+            {
+                message = $"Deleted successfully {itemsToDelete.Count} sportcategories.",
+                deletedIds = ids
+            });
+        }
+        /// <summary>
+        /// Import sport categories from an Excel file.
+        /// </summary>
+        [HttpPost("import")]
+        public async Task<IActionResult> ImportExcel(IFormFile file)
+        {
+            if (file == null || file.Length == 0)
+            {
+                return BadRequest("The file cannot be empty.");
+            }
+
+            var extension = Path.GetExtension(file.FileName).ToLower();
+            if (extension != ".xlsx" && extension != ".xls")
+            {
+                return BadRequest("Only accept file (.xlsx or .xls).");
+            }
+
+            System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
+
+            var categories = new List<SportCategory>();
+
+            using (var stream = file.OpenReadStream())
+            {
+                using (var reader = ExcelReaderFactory.CreateReader(stream))
+                {
+                    var result = reader.AsDataSet();
+                    var table = result.Tables[0]; // take first sheet
+
+                    // Skip the header row (0) and start processing from row 1
+                    for (int i = 1; i < table.Rows.Count; i++)
+                    {
+                        var row = table.Rows[i];
+
+                        var name = row[0]?.ToString()?.Trim();
+                        var description = row[1]?.ToString()?.Trim();
+                        var status = row[2]?.ToString()?.Trim();
+
+                        if (!string.IsNullOrEmpty(name))
+                        {
+                            categories.Add(new SportCategory
+                            {
+                                Name = name,
+                                Description = description ?? "",
+                                Status = string.IsNullOrEmpty(status) ? "Active" : status
+                            });
+                        }
+                    }
+                }
+            }
+
+            if (!categories.Any())
+            {
+                return BadRequest("File Excel does not contain the valid date.");
+            }
+
+            await _dbContext.SportCategories.AddRangeAsync(categories);
+            await _dbContext.SaveChangesAsync();
+
+            return Ok(new
+            {
+                message = $"Imported successfully {categories.Count} sport category.",
+                count = categories.Count
+            });
         }
 
     }
