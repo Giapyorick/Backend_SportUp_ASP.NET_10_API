@@ -5,7 +5,7 @@ on:
     branches:
       - main
       - develop
-  workflow_dispatch:   
+  workflow_dispatch:
 
 jobs:
   build:
@@ -22,11 +22,15 @@ jobs:
       - name: Restore dependencies
         run: dotnet restore ./SportUp/SportUp.csproj
 
+      # ?ã s?a: Dùng --arg ?? an toàn v?i ký t? ??c bi?t và tr? ?úng vào ./SportUp/appsettings.json
       - name: Inject secrets
+        env:
+          DB_CONN: ${{ secrets.MONSTER_DB_CONNECTION }}
         run: |
-          jq '.ConnectionStrings.DefaultConnection = "${{ secrets.MONSTER_DB_CONNECTION }}"' \
-              ./appsettings.json > tmp.json
-          mv tmp.json ./appsettings.json
+          jq --arg conn "$DB_CONN" \
+             '.ConnectionStrings.DefaultConnection = $conn' \
+             ./SportUp/appsettings.json > ./SportUp/tmp.json
+          mv ./SportUp/tmp.json ./SportUp/appsettings.json
 
       - name: Build
         run: dotnet build ./SportUp/SportUp.csproj --configuration Release --no-restore
@@ -58,7 +62,7 @@ jobs:
           server: ${{ secrets.FTP_SERVER_MAIN }}
           username: ${{ secrets.FTP_USERNAME_MAIN }}
           password: ${{ secrets.FTP_PASSWORD_MAIN }}
-          local-dir: ./SportUp/publish/
+          local-dir: ./publish/   # ?ã s?a t? ./SportUp/publish/ thành ./publish/
           server-dir: ${{ secrets.FTP_PATH_MAIN }}
 
   deploy-develop:
