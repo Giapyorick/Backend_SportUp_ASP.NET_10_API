@@ -1,6 +1,22 @@
-@SportUp_HostAddress = https://localhost:44305/api
+@Host = https://localhost:7022
 
-GET {{SportUp_HostAddress}}/weatherforecast/GetWeatherForecast
+### 1. Test xem danh sách (GET)
+GET {{Host}}/api/SportCategories
 Accept: application/json
 
 ###
+
+### 2. Test thêm mới (POST)
+POST {{Host}}/api/SportCategories
+Content-Type: application/json
+
+{
+  "name": "Bóng đá",
+  "description": "Môn thể thao vua"
+}
+
+###
+
+### 3. Test lấy chi tiết theo ID (GET)
+GET {{Host}}/api/SportCategories/1
+Accept: application/json

@@ -1,39 +1,50 @@
 using SportUp.Data;
 using Microsoft.EntityFrameworkCore;
-using Npgsql.EntityFrameworkCore.PostgreSQL;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddControllers();
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-// Add Swagger (Swashbuckle) for a user-friendly UI
+
+// ===== CORS =====
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("ReactPolicy", policy =>
+    {
+        policy
+            .WithOrigins("http://localhost:5173") // Địa chỉ React
+            .AllowAnyHeader()
+            .AllowAnyMethod();
+    });
+});
+
+// Swagger/OpenAPI
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// Configure EF Core DbContext (PostgreSQL for development)
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
-    ?? "Host=localhost;Port=5432;Database=SportUpDb;Username=postgres;Password=YourStrong!Password";
+// Configure EF Core DbContext for SQL Server
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseNpgsql(connectionString));
+    options.UseSqlServer(connectionString));
 
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
-// Ensure static files are served (OpenAPI UI uses embedded static assets)
 app.UseStaticFiles();
-// Serve Swagger UI (Swashbuckle) and point it at the generated Swagger JSON
+
+// Swagger UI
 app.UseSwagger();
 app.UseSwaggerUI(c =>
 {
-    // Point Swagger UI to the Swashbuckle endpoint
     c.SwaggerEndpoint("/swagger/v1/swagger.json", "SportUp API v1");
-    // Serve the UI under /openapi/ui
     c.RoutePrefix = "openapi/ui";
 });
 
 app.UseHttpsRedirection();
+
+// ===== Enable CORS =====
+app.UseCors("ReactPolicy");
 
 app.UseAuthorization();
 

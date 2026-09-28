@@ -20,6 +20,9 @@ namespace SportUp.Entities
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
+        [MaxLength(100)]
+        public string? Status { get; set; }
+
         // Note: In Sprint 3, you'll add the relationships for members/rosters here
     }
 }

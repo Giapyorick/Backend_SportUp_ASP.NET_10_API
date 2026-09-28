@@ -19,6 +19,8 @@ namespace SportUp.Entities
         [MaxLength(200)]
         public string MapUrl { get; set; } = string.Empty; // Google Maps / Apple Maps link
 
+        [MaxLength(50)]
+        public string Status { get; set; } = string.Empty;
         // Navigation property
         public ICollection<Match> Matches { get; set; } = new List<Match>();
     }

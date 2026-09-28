@@ -1,0 +1,83 @@
+name: ASP.NET Core Multi-Branch Deploy
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  workflow_dispatch:   
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'  
+
+      - name: Restore dependencies
+        run: dotnet restore ./SportUp/SportUp.csproj
+
+      - name: Inject secrets
+        run: |
+          jq '.ConnectionStrings.DefaultConnection = "${{ secrets.MONSTER_DB_CONNECTION }}"' \
+              ./appsettings.json > tmp.json
+          mv tmp.json ./appsettings.json
+
+      - name: Build
+        run: dotnet build ./SportUp/SportUp.csproj --configuration Release --no-restore
+
+      - name: Publish
+        run: dotnet publish ./SportUp/SportUp.csproj -c Release -o ./publish/
+
+      - name: Upload publish artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: publish
+          path: ./publish/
+
+  deploy-main:
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Download publish artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: publish
+          path: ./publish/
+
+      - name: Deploy to Production FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER_MAIN }}
+          username: ${{ secrets.FTP_USERNAME_MAIN }}
+          password: ${{ secrets.FTP_PASSWORD_MAIN }}
+          local-dir: ./SportUp/publish/
+          server-dir: ${{ secrets.FTP_PATH_MAIN }}
+
+  deploy-develop:
+    needs: build
+    if: github.ref == 'refs/heads/develop'
+    runs-on: ubuntu-latest
+    environment: develop
+    steps:
+      - name: Download publish artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: publish
+          path: ./publish/
+
+      - name: Deploy to Staging FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER_DEV }}
+          username: ${{ secrets.FTP_USERNAME_DEV }}
+          password: ${{ secrets.FTP_PASSWORD_DEV }}
+          local-dir: ./publish/
+          server-dir: ${{ secrets.FTP_PATH_DEV }}

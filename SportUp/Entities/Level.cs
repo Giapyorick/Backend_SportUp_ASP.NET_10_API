@@ -13,6 +13,9 @@ namespace SportUp.Entities
 
         [MaxLength(200)]
         public string Description { get; set; } = string.Empty;
+        [MaxLength(50)]
+        public string Status { get; set; } = string.Empty;
+
 
 
     }
