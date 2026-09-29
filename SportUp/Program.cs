@@ -12,7 +12,8 @@ builder.Services.AddCors(options =>
     options.AddPolicy("ReactPolicy", policy =>
     {
         policy
-            .WithOrigins("http://localhost:5173") // Địa chỉ React
+            .WithOrigins("http://localhost:5173",
+            "https://fontend-sport-up-react.vercel.app")// Địa chỉ React
             .AllowAnyHeader()
             .AllowAnyMethod();
     });
