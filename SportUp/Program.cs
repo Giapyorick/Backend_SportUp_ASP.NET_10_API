@@ -2,13 +2,15 @@ using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi;
 using SportUp.Data;
 using SportUp.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-builder.Services.AddControllers();
+// ===== ÉP ASP.NET CORE NẠP CHÍNH XÁC ASSEMBLY CHỨA AUTHCONTROLLER =====
+builder.Services.AddControllers()
+    .AddApplicationPart(typeof(SportUp.Controllers.AuthController).Assembly);
 
 // ===== 1. Read JWT Settings & Configure Authentication =====
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
@@ -57,7 +59,10 @@ builder.Services.AddCors(options =>
 
 // ===== 3. Swagger / OpenAPI =====
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new OpenApiInfo { Title = "SportUp API", Version = "v1" });
+});
 
 // ===== 4. Configure EF Core DbContext for SQL Server =====
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
