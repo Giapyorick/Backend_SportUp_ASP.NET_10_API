@@ -26,11 +26,12 @@ builder.Services.Configure<CookiePolicyOptions>(options =>
 // ===== 2. READ JWT SETTINGS & CONFIGURE AUTHENTICATION =====
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
 
-var secretStr = jwtSettings["SecretKey"] ?? "SportUp_Super_Secret_Key_For_Jwt_Authentication_2026_Minimum_32_Bytes!";
+// Đọc chính xác Key, Issuer, Audience từ appsettings.json
+var secretStr = jwtSettings["SecretKey"] ?? "MLLDSi8wLAva8b+NEXa0G+PnOeG790dmUoXHtnwyOGg=";
 var secretKey = Encoding.UTF8.GetBytes(secretStr);
 
-var issuerStr = jwtSettings["Issuer"] ?? "SportUpIssuer";
-var audienceStr = jwtSettings["Audience"] ?? "SportUpAudience";
+var issuerStr = jwtSettings["Issuer"] ?? "SportUpApi";
+var audienceStr = jwtSettings["Audience"] ?? "SportUpReactAdmin";
 
 builder.Services.AddAuthentication(options =>
 {
@@ -47,10 +48,10 @@ builder.Services.AddAuthentication(options =>
         ValidateAudience = true,
         ValidateLifetime = true,
         ValidateIssuerSigningKey = true,
-        ValidIssuer = issuerStr,
-        ValidAudience = audienceStr,
+        ValidIssuer = issuerStr,          // "SportUpApi"
+        ValidAudience = audienceStr,      // "SportUpReactAdmin"
         IssuerSigningKey = new SymmetricSecurityKey(secretKey),
-        ClockSkew = TimeSpan.FromMinutes(5)
+        ClockSkew = TimeSpan.FromMinutes(5) // Chống lệch giờ máy chủ
     };
 });
 
@@ -73,9 +74,9 @@ builder.Services.AddCors(options =>
     });
 });
 
-// ===== 4. OPENAPI (NATIVE .NET CORE / SWAGGER) =====
+// ===== 4. OPENAPI / SWAGGER =====
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen(); // Cấu hình Swagger mặc định cực sạch
+builder.Services.AddSwaggerGen();
 
 // ===== 5. CONFIGURE EF CORE DBCONTEXT FOR SQL SERVER =====
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
@@ -103,8 +104,9 @@ app.MapScalarApiReference(options =>
 
 app.UseHttpsRedirection();
 
-// ===== ENABLE CORS & AUTH =====
+// ===== THỨ TỰ BẮT BUỘC: CORS -> AUTHENTICATION -> AUTHORIZATION =====
 app.UseCors("ReactPolicy");
+
 app.UseAuthentication();
 app.UseAuthorization();
 
