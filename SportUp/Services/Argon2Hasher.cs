@@ -19,9 +19,9 @@ namespace SportUp.Services
             var argon2 = new Argon2id(Encoding.UTF8.GetBytes(password))
             {
                 Salt = salt,
-                DegreeOfParallelism = 8, // Số luồng CPU
-                MemorySize = 65536,     // 64 MB RAM
-                Iterations = 4          // Số vòng lặp
+                DegreeOfParallelism = 1, // Số luồng CPU
+                MemorySize = 4096,     // 64 MB RAM
+                Iterations = 2          // Số vòng lặp
             };
 
             byte[] hash = argon2.GetBytes(32); // Hash dài 32 bytes
