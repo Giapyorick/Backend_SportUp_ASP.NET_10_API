@@ -2,7 +2,6 @@ using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
-using Microsoft.OpenApi;
 using Scalar.AspNetCore;
 using SportUp.Data;
 using SportUp.Services;
@@ -20,7 +19,7 @@ builder.Services.Configure<CookiePolicyOptions>(options =>
     options.OnAppendCookie = cookieContext =>
     {
         cookieContext.CookieOptions.SameSite = SameSiteMode.None;
-        cookieContext.CookieOptions.Secure = true; // Bắt buộc khi dùng SameSite=None
+        cookieContext.CookieOptions.Secure = true;
     };
 });
 
@@ -51,7 +50,7 @@ builder.Services.AddAuthentication(options =>
         ValidIssuer = issuerStr,
         ValidAudience = audienceStr,
         IssuerSigningKey = new SymmetricSecurityKey(secretKey),
-        ClockSkew = TimeSpan.FromMinutes(5) // 👈 Chống lệch múi giờ giữa Server & Client
+        ClockSkew = TimeSpan.FromMinutes(5)
     };
 });
 
@@ -70,42 +69,13 @@ builder.Services.AddCors(options =>
             )
             .AllowAnyHeader()
             .AllowAnyMethod()
-            .AllowCredentials(); // Bắt buộc gửi/nhận RefreshToken Cookie
+            .AllowCredentials();
     });
 });
 
-// ===== 4. OPENAPI / SWAGGER (TÍCH HỢP BEARER AUTHORIZE) =====
+// ===== 4. OPENAPI (NATIVE .NET CORE / SWAGGER) =====
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen(c =>
-{
-    c.SwaggerDoc("v1", new OpenApiInfo { Title = "SportUp API", Version = "v1" });
-
-    // Khai báo cấu hình JWT Bearer cho Scalar/Swagger
-    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
-    {
-        Description = "Nhập AccessToken vào đây (ví dụ: eyJhbGci...)",
-        Name = "Authorization",
-        In = ParameterLocation.Header,
-        Type = SecuritySchemeType.Http,
-        Scheme = "bearer",
-        BearerFormat = "JWT"
-    });
-
-    c.AddSecurityRequirement(new OpenApiSecurityRequirement
-    {
-        {
-            new OpenApiSecurityScheme
-            {
-                Reference = new OpenApiReference
-                {
-                    Type = ReferenceType.SecurityScheme,
-                    Id = "Bearer"
-                }
-            },
-            Array.Empty<string>()
-        }
-    });
-});
+builder.Services.AddSwaggerGen(); // Cấu hình Swagger mặc định cực sạch
 
 // ===== 5. CONFIGURE EF CORE DBCONTEXT FOR SQL SERVER =====
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
@@ -114,7 +84,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 var app = builder.Build();
 
-app.UseCookiePolicy(); // 👈 Bật Cookie Policy
+app.UseCookiePolicy();
 app.UseStaticFiles();
 
 // ===== 6. SCALAR UI & SWAGGER JSON =====
