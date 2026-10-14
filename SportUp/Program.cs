@@ -1,18 +1,18 @@
-using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
+using Scalar.AspNetCore; // 👈 1. Thêm namespace Scalar
 using SportUp.Data;
 using SportUp.Services;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// ===== ÉP ASP.NET CORE NẠP CHÍNH XÁC ASSEMBLY CHỨA AUTHCONTROLLER =====
 builder.Services.AddControllers()
     .AddApplicationPart(typeof(SportUp.Controllers.AuthController).Assembly);
 
-// ===== 1. Read JWT Settings & Configure Authentication =====
+// ===== 1. JWT & Auth =====
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
 var secretKey = Encoding.UTF8.GetBytes(jwtSettings["SecretKey"]!);
 
@@ -57,34 +57,41 @@ builder.Services.AddCors(options =>
     });
 });
 
-// ===== 3. Swagger / OpenAPI =====
+// ===== 3. OpenAPI =====
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
-    c.SwaggerDoc("v1", new OpenApiInfo { Title = "SportUp API", Version = "v1" });
+    c.SwaggerDoc("v1", new Microsoft.OpenApi.OpenApiInfo
+    {
+        Title = "SportUp API",
+        Version = "v1"
+    });
 });
 
-// ===== 4. Configure EF Core DbContext for SQL Server =====
+// ===== 4. EF Core =====
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(connectionString));
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
 app.UseStaticFiles();
 
-// ===== Swagger UI =====
-app.UseSwagger();
-app.UseSwaggerUI(c =>
+// ===== 5. OpenAPI JSON & SCALAR UI =====
+app.UseSwagger(c =>
 {
-    c.SwaggerEndpoint("/swagger/v1/swagger.json", "SportUp API v1");
-    c.RoutePrefix = "openapi/ui"; // Đường dẫn truy cập UI: /openapi/ui
+    c.RouteTemplate = "swagger/{documentName}/swagger.json";
+});
+
+app.MapScalarApiReference(options =>
+{
+    options.WithTitle("SportUp API Reference")
+           .WithTheme(ScalarTheme.Purple)
+           .WithOpenApiRoutePattern("/swagger/{documentName}/swagger.json") // 👈 Chỉ định rõ pattern dẫn đến file JSON
+           .WithDefaultHttpClient(ScalarTarget.JavaScript, ScalarClient.Fetch);
 });
 
 app.UseHttpsRedirection();
-
-// ===== Enable CORS & Auth =====
 app.UseCors("ReactPolicy");
 app.UseAuthentication();
 app.UseAuthorization();
