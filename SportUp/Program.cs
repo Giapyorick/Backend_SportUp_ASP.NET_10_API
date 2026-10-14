@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
+using Scalar.AspNetCore;
 using SportUp.Data;
 using SportUp.Services;
 
@@ -14,7 +15,13 @@ builder.Services.AddControllers()
 
 // ===== 1. Read JWT Settings & Configure Authentication =====
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
-var secretKey = Encoding.UTF8.GetBytes(jwtSettings["SecretKey"]!);
+
+// Bọc fallback an toàn nếu SecretKey bị rỗng hoặc chưa inject kịp
+var secretStr = jwtSettings["SecretKey"] ?? "SportUp_Super_Secret_Key_For_Jwt_Authentication_2026_Minimum_32_Bytes!";
+var secretKey = Encoding.UTF8.GetBytes(secretStr);
+
+var issuerStr = jwtSettings["Issuer"] ?? "SportUpIssuer";
+var audienceStr = jwtSettings["Audience"] ?? "SportUpAudience";
 
 builder.Services.AddAuthentication(options =>
 {
@@ -31,8 +38,8 @@ builder.Services.AddAuthentication(options =>
         ValidateAudience = true,
         ValidateLifetime = true,
         ValidateIssuerSigningKey = true,
-        ValidIssuer = jwtSettings["Issuer"],
-        ValidAudience = jwtSettings["Audience"],
+        ValidIssuer = issuerStr,
+        ValidAudience = audienceStr,
         IssuerSigningKey = new SymmetricSecurityKey(secretKey),
         ClockSkew = TimeSpan.Zero
     };
@@ -57,7 +64,7 @@ builder.Services.AddCors(options =>
     });
 });
 
-// ===== 3. Swagger / OpenAPI =====
+// ===== 3. OpenAPI / Swagger =====
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
@@ -71,15 +78,20 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
 app.UseStaticFiles();
 
-// ===== Swagger UI =====
-app.UseSwagger();
-app.UseSwaggerUI(c =>
+// ===== 5. SCALAR UI & SWAGGER JSON =====
+app.UseSwagger(c =>
 {
-    c.SwaggerEndpoint("/swagger/v1/swagger.json", "SportUp API v1");
-    c.RoutePrefix = "openapi/ui"; // Đường dẫn truy cập UI: /openapi/ui
+    c.RouteTemplate = "swagger/{documentName}/swagger.json";
+});
+
+app.MapScalarApiReference(options =>
+{
+    options.WithTitle("SportUp API Reference")
+           .WithTheme(ScalarTheme.Purple)
+           .WithOpenApiRoutePattern("/swagger/{documentName}/swagger.json")
+           .WithDefaultHttpClient(ScalarTarget.JavaScript, ScalarClient.Fetch);
 });
 
 app.UseHttpsRedirection();
@@ -91,4 +103,4 @@ app.UseAuthorization();
 
 app.MapControllers();
 
-app.Run();
+app.Run();  
