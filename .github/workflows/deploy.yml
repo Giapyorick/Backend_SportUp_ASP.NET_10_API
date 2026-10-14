@@ -1,0 +1,113 @@
+name: ASP.NET Core Multi-Branch Deploy
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore dependencies
+        run: dotnet restore ./SportUp/SportUp.csproj
+
+      - name: Inject secrets (DB & JWT)
+        env:
+          DB_CONN: ${{ secrets.MONSTER_DB_CONNECTION }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET_KEY }}
+          JWT_ISSUER: ${{ secrets.JWT_ISSUER }}
+          JWT_AUDIENCE: ${{ secrets.JWT_AUDIENCE }}
+          JWT_ACCESS_EXP: ${{ secrets.JWT_ACCESS_EXPIRATION_MINUTES }}
+          JWT_REFRESH_EXP: ${{ secrets.JWT_REFRESH_EXPIRATION_DAYS }}
+        run: |
+          jq --arg conn "$DB_CONN" \
+             --arg secret "$JWT_SECRET" \
+             --arg issuer "$JWT_ISSUER" \
+             --arg audience "$JWT_AUDIENCE" \
+             --arg accessExp "$JWT_ACCESS_EXP" \
+             --arg refreshExp "$JWT_REFRESH_EXP" \
+             '.ConnectionStrings.DefaultConnection = $conn |
+              .JwtSettings.SecretKey = $secret |
+              .JwtSettings.Issuer = $issuer |
+              .JwtSettings.Audience = $audience |
+              .JwtSettings.AccessTokenExpirationMinutes = ($accessExp | tonumber) |
+              .JwtSettings.RefreshTokenExpirationDays = ($refreshExp | tonumber)' \
+             ./SportUp/appsettings.json > ./SportUp/tmp.json
+          mv ./SportUp/tmp.json ./SportUp/appsettings.json
+
+      - name: Build
+        run: dotnet build ./SportUp/SportUp.csproj --configuration Release --no-restore
+
+      - name: Publish
+        run: dotnet publish ./SportUp/SportUp.csproj -c Release -o ./publish/
+
+      - name: Upload publish artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: publish
+          path: ./publish/
+
+  deploy-main:
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Download publish artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: publish
+          path: ./publish/
+
+      # 1. Tạo file app_offline.htm ở local runner
+      - name: Create app_offline.htm
+        run: echo "<h1>Updating Application...</h1>" > ./publish/app_offline.htm
+
+      # 2. Sync toàn bộ file build + app_offline.htm lên FTP (Khóa App & giải phóng RAM)
+      - name: Deploy build artifact to FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER_MAIN }}
+          username: ${{ secrets.FTP_USERNAME_MAIN }}
+          password: ${{ secrets.FTP_PASSWORD_MAIN }}
+          local-dir: ./publish/
+          server-dir: ${{ secrets.FTP_PATH_MAIN }}
+
+      # 3. Xóa trực tiếp duy nhất file app_offline.htm trên Server FTP bằng curl
+      - name: Delete app_offline.htm & Restart IIS
+        run: |
+          curl -u "${{ secrets.FTP_USERNAME_MAIN }}:${{ secrets.FTP_PASSWORD_MAIN }}" \
+               "ftp://${{ secrets.FTP_SERVER_MAIN }}${{ secrets.FTP_PATH_MAIN }}app_offline.htm" \
+               -Q "-DELE app_offline.htm" || true
+
+  deploy-develop:
+    needs: build
+    if: github.ref == 'refs/heads/develop'
+    runs-on: ubuntu-latest
+    environment: develop
+    steps:
+      - name: Download publish artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: publish
+          path: ./publish/
+
+      - name: Deploy to Staging FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER_DEV }}
+          username: ${{ secrets.FTP_USERNAME_DEV }}
+          password: ${{ secrets.FTP_PASSWORD_DEV }}
+          local-dir: ./publish/
+          server-dir: ${{ secrets.FTP_PATH_DEV }}
