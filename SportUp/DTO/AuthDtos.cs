@@ -1,4 +1,4 @@
-﻿namespace SportUp.DTOs;
+﻿namespace SportUp.DTO;
 
 public record LoginDto(string Username, string Password);
 
